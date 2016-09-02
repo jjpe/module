@@ -172,6 +172,13 @@ intmax_t socket_type_to_c(emacs_env *env, emacs_value socket_type_kw) {
 ////////////////////////////////////////////////////////////////////////////////
 //  Emacs subrs                                                               //
 ////////////////////////////////////////////////////////////////////////////////
+static void free_socket(void *arg) {
+    zsock_t *sock = (zsock_t *)arg;
+    zsock_destroy(&sock);
+    printf("[spoofax module] Destroyed socket");
+    fflush(stdout);
+}
+
 static emacs_value Fzmq_new_socket(emacs_env *env,
                                    ptrdiff_t nargs,
                                    emacs_value args[],
@@ -184,22 +191,7 @@ static emacs_value Fzmq_new_socket(emacs_env *env,
     if (!socket) { return SYM("nil"); /* TODO: Handle error */ }
 
     MESSAGE("[spoofax module] Created socket");
-    return env->make_user_ptr(env, (void (*)(void *))zsock_destroy, socket);
-}
-
-static emacs_value Fzmq_destroy_socket(emacs_env *env,
-                                       ptrdiff_t nargs,
-                                       emacs_value args[],
-                                       void *data) {
-    assert(nargs == 1);
-    if (!args[0]) { return SYM("nil"); /* TODO: Handle error */ }
-
-    zsock_t *socket = env->get_user_ptr(env, args[0]);
-    if (!socket) { return SYM("nil"); /* TODO: Handle error */ }
-
-    zsock_destroy(&socket);
-    MESSAGE("[spoofax module] Destroyed socket");
-    return SYM("t");
+    return env->make_user_ptr(env, free_socket, socket);
 }
 
 static emacs_value Fzmq_connect(emacs_env *env,
