@@ -54,51 +54,61 @@ def clean(out_dir):
     print('[build] Cleaned output dir', out_dir)
 
 
-def build_module(out_dir,
+def compile_file(src_file,
                  obj_file,
-                 so_file,
-                 src_file,
-                 cc='gcc',
-                 ld='gcc',
-                 include_dirs=include_dirs(),
-                 libs=libs(),
-                 lib_dirs=lib_dirs()):
-    if not path.exists(out_dir):
-        os.mkdir(out_dir)
-        print('[build] Created output dir', out_dir)
-    warn_flags = '-Wall -Werror'
-    cflags = warn_flags + ' -std=gnu99 -fpic'
+                 cc           = 'gcc',
+                 include_dirs = include_dirs(),
+                 warn_flags   = '-Wall -Werror'):
     cc_cmd = '{CC} -c {INCLUDES} {CFLAGS} -o {OBJ} {SRC}'.format(
         CC       = cc,
         INCLUDES = include_dirs,
-        CFLAGS   = cflags,
+        CFLAGS   = warn_flags + ' -std=gnu99 -fpic',
         OBJ      = obj_file,
         SRC      = src_file)
     print('[build] Compiling:\n{}\n'.format(cc_cmd))
     os.system(cc_cmd)
-    # sldflags = '-static'
-    # sld_cmd = '{LD} {INCLS} {LIBS} {LIB_DIRS} {LDFLAGS} -o {SO} {OBJ}'.format(
-    #     LD       = ld,
-    #     INCLS    = include_dirs,
-    #     LIBS     = libs,
-    #     LIB_DIRS = lib_dirs,
-    #     LDFLAGS  = sldflags,
-    #     SO       = so_file,
-    #     OBJ      = obj_file)
-    # print('[build] Linking statically:\n{}\n'.format(sld_cmd))
-    # os.system(sld_cmd)
-    dldflags = '-shared'
-    dld_cmd = '{LD} {INCLS} {LIBS} {LIB_DIRS} {LDFLAGS} -o {SO} {OBJ}'.format(
+
+def link_dynamic(obj_file,
+                 so_file,
+                 ld           = 'gcc',
+                 include_dirs = include_dirs(),
+                 libs         = libs(),
+                 lib_dirs     = lib_dirs()):
+    ldflags = '-shared'
+    ld_cmd = '{LD} {INCLS} {LIBS} {LIB_DIRS} {LDFLAGS} -o {SO} {OBJ}'.format(
         LD       = ld,
         INCLS    = include_dirs,
         LIBS     = libs,
         LIB_DIRS = lib_dirs,
-        LDFLAGS  = dldflags,
+        LDFLAGS  = ldflags,
         SO       = so_file,
         OBJ      = obj_file)
-    print('[build] Linking dynamically:\n{}\n'.format(dld_cmd))
-    os.system(dld_cmd)
+    print('[build] Linking dynamically:\n{}\n'.format(ld_cmd))
+    os.system(ld_cmd)
 
+def link_static(obj_file,
+                so_file,
+                ld           = 'gcc',
+                include_dirs = include_dirs(),
+                libs         = libs(),
+                lib_dirs     = lib_dirs()):
+    # Static linking apparently is not supported on OS X, see
+    #   https://github.com/crosstool-ng/crosstool-ng/issues/31#issuecomment-71333176
+    # and
+    #   https://stackoverflow.com/questions/5259249/creating-static-mac-os-x-c-build
+    OS = platform.system()
+    if OS not in [DARWIN]:
+        ldflags = '-static'
+        ld_cmd = '{LD} {INCLS} {LIBS} {LIB_DIRS} {LDFLAGS} -o {SO} {OBJ}'.format(
+            LD       = ld,
+            INCLS    = include_dirs,
+            LIBS     = libs,
+            LIB_DIRS = lib_dirs,
+            LDFLAGS  = ldflags,
+            SO       = so_file,
+            OBJ      = obj_file)
+        print('[build] Linking statically:\n{}\n'.format(ld_cmd))
+        os.system(ld_cmd)
 
 def parse_cli_args():
     parser = argparse.ArgumentParser(description='Build the C module.')
@@ -107,7 +117,6 @@ def parse_cli_args():
     parser.add_argument('-b', '--build', action='store_true', default=True,
                         help='Build the project.')
     return parser.parse_args()
-
 
 def main():
     OS = platform.system()
@@ -129,7 +138,9 @@ def main():
     if args.clean:
         clean(out_dir)
     if args.build:
-        build_module(out_dir,  obj_file,  so_file,  src_file)
+        compile_file(src_file, obj_file)
+        link_dynamic(obj_file, so_file)
+        link_static(obj_file, so_file)
 
 if __name__ == "__main__":
     main()
@@ -352,4 +363,4 @@ if __name__ == "__main__":
 # main()
 
 #  LocalWords:  usr zeromq returncode cflags DIRS LDFLAGS LD Werror
-#  LocalWords:  fpic
+#  LocalWords:  fpic dirs
