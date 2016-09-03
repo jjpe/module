@@ -233,7 +233,7 @@ static emacs_value Fzmq_disconnect(emacs_env *env,
     if (!args[1]) { return SYM("nil"); /* TODO: Handle error */ }
 
     zsock_t *socket = env->get_user_ptr(env, args[0]);
-    if (!socket) { /* TODO: Handle error */ }
+    if (!socket) {  return SYM("nil"); /* TODO: Handle error */ }
 
     // Get the necessary buffer length:
     ptrdiff_t addrlen = 0;
@@ -296,6 +296,12 @@ static emacs_value Fzmq_receive(emacs_env *env,
 
     // Receive the string
     char *string = zstr_recv(socket);
+    if (!string) {
+        // According to CZMQ, the context is being terminated,
+        // or the process was interrupted.
+        zstr_free(&string);
+        return SYM("nil"); /* TODO: Handle error */
+    }
 
     // Copy the string to Elisp
     emacs_value emacs_string = env->make_string(env, string, strlen(string));
@@ -317,9 +323,6 @@ Create a new ZMQ socket of a given socket type, specified by a keyword.\n\
 Valid socket types are in {:zmq-pair, :zmq-pub, :zmq-sub, :zmq-req,\n\
 :zmq-rep, :zmq-dealer, :zmq-router, :zmq-pull, :zmq-push, :zmq-xpub,\n\
 :zmq-xsub, :zmq-stream}.");
-    DEFN("spoofax-module/destroy-socket",     Fzmq_destroy_socket,      1, 1,
-         "(SOCKET)\n\n\
-Destroy an existing ZMQ socket.");
 
     DEFN("spoofax-module/connect",            Fzmq_connect,             2, 2,
          "(SOCKET ADDRESS)\n\n\
